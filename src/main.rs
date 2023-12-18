@@ -22,6 +22,7 @@ fn main() {
     // Initialize audio output stream
     let (_stream, stream_handle) = OutputStream::try_default().unwrap();
 
+
     // Load the "high.wav" sound file into memory
     // let mut file_high = File::open("sounds/bright.wav").unwrap();
     // let mut buffer_high = Vec::new();
@@ -32,8 +33,13 @@ fn main() {
     // let mut buffer_bright = Vec::new();
     // file_bright.read_to_end(&mut buffer_bright).unwrap();
 
+    // Load the "high.wav" sound file into memory
     let buffer_high = load_sound_file("sounds/bright.wav").unwrap();
     let buffer_bright = load_sound_file("sounds/high.wav").unwrap();
+
+    // let source_high = Decoder::new(io::Cursor::new(buffer_high)).unwrap().convert_samples();
+    // let source_bright = Decoder::new(io::Cursor::new(buffer_bright)).unwrap().convert_samples();
+
 
     // Initialize beat counter
     let mut beat_counter = 1;
@@ -66,7 +72,15 @@ fn main() {
       } else {
           io::Cursor::new(buffer_bright.clone())
       };
-      let source = Decoder::new(cursor).unwrap().convert_samples();
+      // let source = Decoder::new(cursor).unwrap().convert_samples();
+      // stream_handle.play_raw(source).unwrap();
+
+      // In the loop:
+      let source = if beat_counter == 1 {
+        Decoder::new(io::Cursor::new(buffer_high.clone())).unwrap().convert_samples()
+      } else {
+        Decoder::new(io::Cursor::new(buffer_bright.clone())).unwrap().convert_samples()
+      };
       stream_handle.play_raw(source).unwrap();
 
       // Sleep for the calculated delay time
