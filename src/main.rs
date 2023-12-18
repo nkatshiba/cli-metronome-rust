@@ -1,141 +1,111 @@
 use rodio::{Decoder, OutputStream, source::Source};
 use std::{io, thread, time::Duration, fs::File, io::Read};
 use crossterm::{
-    cursor::{MoveTo, position},
-    style::{Color, Print, ResetColor, SetForegroundColor, SetBackgroundColor},
-    terminal::{size, Clear, ClearType, enable_raw_mode, disable_raw_mode},
-    event::{poll, read, Event, KeyCode},
-    execute,
+   cursor::{MoveTo},
+   style::{Color, Print, ResetColor, SetForegroundColor, SetBackgroundColor},
+   terminal::{size, Clear, ClearType, enable_raw_mode, disable_raw_mode},
+   event::{poll, read, Event, KeyCode},
+   execute,
 };
 
-fn main() {
+const HIGH_SOUND_FILE: &str = "sounds/bright.wav";
+const BRIGHT_SOUND_FILE: &str = "sounds/high.wav";
+const INITIAL_DELAY_TIME: u64 = 60_000;
 
-    // Get BPM from user
-    let mut bpm = get_bpm();
+fn main() -> io::Result<()> {
+  let mut bpm = get_bpm();
+  enable_raw_mode().map_err(|_| io::Error::new(io::ErrorKind::Other, "Failed to enable raw mode"))?;
+  let mut delay_time = INITIAL_DELAY_TIME / (bpm as u64);
+  let (_stream, stream_handle) = OutputStream::try_default().map_err(|_| io::Error::new(io::ErrorKind::Other, "Failed to create output stream"))?;
 
-    // Enable raw mode to read user input without pressing enter
-    enable_raw_mode().unwrap();
+  let mut beat_counter = 1;
 
-    // Calculate the delay time in milliseconds
-    let mut delay_time = 60_000 / bpm;
+  loop {
+      clear_screen().map_err(|_| io::Error::new(io::ErrorKind::Other, "Failed to clear screen"))?;
+      display_bpm(&bpm).map_err(|_| io::Error::new(io::ErrorKind::Other, "Failed to display BPM"))?;
 
-    // Initialize audio output stream
-    let (_stream, stream_handle) = OutputStream::try_default().unwrap();
+      // let source = get_sound_source(buffer_high.clone(), buffer_bright.clone(), beat_counter).map_err(|_| io::Error::new(io::ErrorKind::Other, "Failed to get sound source"))?;
+      let source = get_sound_source(beat_counter).map_err(|_| io::Error::new(io::ErrorKind::Other, "Failed to get sound source"))?;
+      stream_handle.play_raw(source).map_err(|_| io::Error::new(io::ErrorKind::Other, "Failed to play sound"))?;
 
+      thread::sleep(Duration::from_millis(delay_time));
 
-    // Load the "high.wav" sound file into memory
-    // let mut file_high = File::open("sounds/bright.wav").unwrap();
-    // let mut buffer_high = Vec::new();
-    // file_high.read_to_end(&mut buffer_high).unwrap();
-    //
-    // // Load the "bright.wav" sound file into memory
-    // let mut file_bright = File::open("sounds/high.wav").unwrap();
-    // let mut buffer_bright = Vec::new();
-    // file_bright.read_to_end(&mut buffer_bright).unwrap();
-
-    // Load the "high.wav" sound file into memory
-    let buffer_high = load_sound_file("sounds/bright.wav").unwrap();
-    let buffer_bright = load_sound_file("sounds/high.wav").unwrap();
-
-    // let source_high = Decoder::new(io::Cursor::new(buffer_high)).unwrap().convert_samples();
-    // let source_bright = Decoder::new(io::Cursor::new(buffer_bright)).unwrap().convert_samples();
-
-
-    // Initialize beat counter
-    let mut beat_counter = 1;
-
-    loop {
-      // ...
-
-      // Clear the screen
-      execute!(io::stdout(), Clear(ClearType::All)).unwrap();
-
-      // Get the size of the terminal
-      let (cols, _rows) = size().unwrap();
-
-      // Calculate the position to center the BPM text
-      let pos = (cols / 2) as u16;
-
-      // Display the BPM in the middle of the screen in big text
-      execute!(
-          io::stdout(),
-          MoveTo(pos, 10), // Move cursor to the middle of the screen
-          SetForegroundColor(Color::Red), // Set text color
-          SetBackgroundColor(Color::Black), // Set background color
-          Print(format!("BPM: {}", bpm)), // Print the BPM
-          ResetColor // Reset color to default
-      ).unwrap();
-
-      // Play the appropriate sound by creating a new Decoder each time
-      let cursor = if beat_counter == 1 {
-          io::Cursor::new(buffer_high.clone())
-      } else {
-          io::Cursor::new(buffer_bright.clone())
-      };
-      // let source = Decoder::new(cursor).unwrap().convert_samples();
-      // stream_handle.play_raw(source).unwrap();
-
-      // In the loop:
-      let source = if beat_counter == 1 {
-        Decoder::new(io::Cursor::new(buffer_high.clone())).unwrap().convert_samples()
-      } else {
-        Decoder::new(io::Cursor::new(buffer_bright.clone())).unwrap().convert_samples()
-      };
-      stream_handle.play_raw(source).unwrap();
-
-      // Sleep for the calculated delay time
-      thread::sleep(Duration::from_millis(delay_time as u64));
-
-      // Update beat counter
       beat_counter = if beat_counter < 4 { beat_counter + 1 } else { 1 };
 
-      // Check if there's any user input
-      if poll(Duration::from_millis(1)).unwrap() {
-          if let Event::Key(event) = read().unwrap() {
+      if poll(Duration::from_millis(1)).map_err(|_| io::Error::new(io::ErrorKind::Other, "Failed to poll event"))? {
+          if let Event::Key(event) = read().map_err(|_| io::Error::new(io::ErrorKind::Other, "Failed to read event"))? {
               match event.code {
-                  // Increase BPM when '+' or 'up' is pressed
-                  KeyCode::Char('+') | KeyCode::Up => {
-                      bpm += 1;
-                      delay_time = 60_000 / bpm;
-                  }
-                  // Decrease BPM when '-' or 'down' is pressed
-                  KeyCode::Char('-') | KeyCode::Down => {
-                      if bpm > 1 {
-                          bpm -= 1;
-                          delay_time = 60_000 / bpm;
-                      }
-                  }
-                  // Quit when 'q' is pressed
-                  KeyCode::Char('q') => {
-                      disable_raw_mode().unwrap();
-                      return;
-                  }
-                  _ => {}
+                KeyCode::Char('+') | KeyCode::Up => {
+                    bpm += 1;
+                    delay_time = 60_000 / (bpm as u64);
+                }
+                KeyCode::Char('-') | KeyCode::Down => {
+                    if bpm > 1 {
+                        bpm -= 1;
+                        delay_time = 60_000 / (bpm as u64);
+                    }
+                }
+                KeyCode::Char('q') => {
+                    disable_raw_mode().map_err(|_| io::Error::new(io::ErrorKind::Other, "Failed to disable raw mode"))?;
+                    return Ok(());
+                }
+                _ => {}
               }
           }
       }
-    }
-
-    // Infinite loop to simulate the metronome
+  }
 }
 
 fn get_bpm() -> u32 {
-    let mut bpm_string = String::new();
-    println!("Enter the desired BPM:");
+   let mut bpm_string = String::new();
+   println!("Enter the desired BPM:");
 
-    io::stdin()
-        .read_line(&mut bpm_string)
-        .expect("Failed to read line");
+   io::stdin()
+       .read_line(&mut bpm_string)
+       .expect("Failed to read line");
 
-    let bpm: u32 = bpm_string.trim().parse().expect("Please type a number!");
+   let bpm: u32 = bpm_string.trim().parse().expect("Please type a number!");
 
-    bpm
+   bpm
 }
-
 
 fn load_sound_file(filename: &str) -> io::Result<Vec<u8>> {
    let mut file = File::open(filename)?;
    let mut buffer = Vec::new();
    file.read_to_end(&mut buffer)?;
    Ok(buffer)
+}
+
+fn clear_screen() -> io::Result<()> {
+  execute!(io::stdout(), Clear(ClearType::All)).map_err(|_| io::Error::new(io::ErrorKind::Other, "Failed to clear screen"))
+}
+
+fn display_bpm(bpm: &u32) -> io::Result<()> {
+  let (cols, _rows) = size().map_err(|_| io::Error::new(io::ErrorKind::Other, "Failed to get terminal size"))?;
+  let pos = (cols / 2) as u16;
+
+  execute!(
+      io::stdout(),
+      MoveTo(pos, 10),
+      SetForegroundColor(Color::Red),
+      SetBackgroundColor(Color::Black),
+      Print(format!("BPM: {}", bpm)),
+      ResetColor
+  ).map_err(|_| io::Error::new(io::ErrorKind::Other, "Failed to display BPM"))
+}
+
+fn create_decoder(filename: &str) -> io::Result<Box<dyn Source<Item = f32> + Send>> {
+   let buffer = load_sound_file(filename)?;
+   let source = Decoder::new(io::Cursor::new(buffer)).map_err(|_| io::Error::new(io::ErrorKind::Other, "Failed to create decoder"))?.convert_samples();
+   Ok(Box::new(source))
+}
+
+
+fn get_sound_source(beat_counter: u32) -> io::Result<Box<dyn Source<Item = f32> + Send>> {
+   let source = if beat_counter == 1 {
+       create_decoder(HIGH_SOUND_FILE)
+   } else {
+       create_decoder(BRIGHT_SOUND_FILE)
+   };
+   source
 }
