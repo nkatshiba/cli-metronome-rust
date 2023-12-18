@@ -1,8 +1,11 @@
 use rodio::{Decoder, OutputStream, source::Source};
 use std::{io, thread, time::Duration, fs::File, io::Read};
 use crossterm::{
+    cursor::{MoveTo, position},
+    style::{Color, Print, ResetColor, SetForegroundColor, SetBackgroundColor},
+    terminal::{size, Clear, ClearType, enable_raw_mode, disable_raw_mode},
     event::{poll, read, Event, KeyCode},
-    terminal::{disable_raw_mode, enable_raw_mode},
+    execute,
 };
 
 fn main() {
@@ -33,6 +36,26 @@ fn main() {
     let mut beat_counter = 1;
 
     loop {
+      // ...
+
+      // Clear the screen
+      execute!(io::stdout(), Clear(ClearType::All)).unwrap();
+
+      // Get the size of the terminal
+      let (cols, _rows) = size().unwrap();
+
+      // Calculate the position to center the BPM text
+      let pos = (cols / 2) as u16;
+
+      // Display the BPM in the middle of the screen in big text
+      execute!(
+          io::stdout(),
+          MoveTo(pos, 10), // Move cursor to the middle of the screen
+          SetForegroundColor(Color::Red), // Set text color
+          SetBackgroundColor(Color::Black), // Set background color
+          Print(format!("BPM: {}", bpm)), // Print the BPM
+          ResetColor // Reset color to default
+      ).unwrap();
 
       // Play the appropriate sound by creating a new Decoder each time
       let cursor = if beat_counter == 1 {
