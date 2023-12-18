@@ -23,14 +23,17 @@ fn main() {
     let (_stream, stream_handle) = OutputStream::try_default().unwrap();
 
     // Load the "high.wav" sound file into memory
-    let mut file_high = File::open("sounds/bright.wav").unwrap();
-    let mut buffer_high = Vec::new();
-    file_high.read_to_end(&mut buffer_high).unwrap();
+    // let mut file_high = File::open("sounds/bright.wav").unwrap();
+    // let mut buffer_high = Vec::new();
+    // file_high.read_to_end(&mut buffer_high).unwrap();
+    //
+    // // Load the "bright.wav" sound file into memory
+    // let mut file_bright = File::open("sounds/high.wav").unwrap();
+    // let mut buffer_bright = Vec::new();
+    // file_bright.read_to_end(&mut buffer_bright).unwrap();
 
-    // Load the "bright.wav" sound file into memory
-    let mut file_bright = File::open("sounds/high.wav").unwrap();
-    let mut buffer_bright = Vec::new();
-    file_bright.read_to_end(&mut buffer_bright).unwrap();
+    let buffer_high = load_sound_file("sounds/bright.wav").unwrap();
+    let buffer_bright = load_sound_file("sounds/high.wav").unwrap();
 
     // Initialize beat counter
     let mut beat_counter = 1;
@@ -113,4 +116,12 @@ fn get_bpm() -> u32 {
     let bpm: u32 = bpm_string.trim().parse().expect("Please type a number!");
 
     bpm
+}
+
+
+fn load_sound_file(filename: &str) -> io::Result<Vec<u8>> {
+   let mut file = File::open(filename)?;
+   let mut buffer = Vec::new();
+   file.read_to_end(&mut buffer)?;
+   Ok(buffer)
 }
