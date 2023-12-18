@@ -12,19 +12,34 @@ fn main() {
     let (_stream, stream_handle) = OutputStream::try_default().unwrap();
 
     // Load the "high.wav" sound file into memory
-    let mut file = File::open("sounds/high.wav").unwrap();
-    let mut buffer = Vec::new();
-    file.read_to_end(&mut buffer).unwrap();
+    let mut file_high = File::open("sounds/bright.wav").unwrap();
+    let mut buffer_high = Vec::new();
+    file_high.read_to_end(&mut buffer_high).unwrap();
+
+    // Load the "bright.wav" sound file into memory
+    let mut file_bright = File::open("sounds/high.wav").unwrap();
+    let mut buffer_bright = Vec::new();
+    file_bright.read_to_end(&mut buffer_bright).unwrap();
+
+    // Initialize beat counter
+    let mut beat_counter = 1;
 
     // Infinite loop to simulate the metronome
     loop {
-        // Play the sound by creating a new Decoder each time
-        let cursor = io::Cursor::new(buffer.clone());
+        // Play the appropriate sound by creating a new Decoder each time
+        let cursor = if beat_counter == 1 {
+            io::Cursor::new(buffer_high.clone())
+        } else {
+            io::Cursor::new(buffer_bright.clone())
+        };
         let source = Decoder::new(cursor).unwrap().convert_samples();
         stream_handle.play_raw(source).unwrap();
 
         // Sleep for the calculated delay time
         thread::sleep(Duration::from_millis(delay_time as u64));
+
+        // Update beat counter
+        beat_counter = if beat_counter < 4 { beat_counter + 1 } else { 1 };
     }
 }
 
