@@ -8,3 +8,5 @@ edition = "2021"
 [dependencies]
 rodio = "0.17"
 crossterm = "0.19"
+include_dir = "0.7.3" # Check for the latest version on crates.io
+
