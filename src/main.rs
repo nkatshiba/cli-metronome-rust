@@ -1,5 +1,5 @@
 use rodio::{Decoder, OutputStream, source::Source};
-use std::{io, thread, time::Duration, fs::File, io::Read};
+use std::{io, thread, time::Duration};
 use crossterm::{
     cursor::MoveTo,
     style::{Color, Print, ResetColor, SetForegroundColor, SetBackgroundColor, Color::Rgb},
@@ -7,11 +7,12 @@ use crossterm::{
     event::{poll, read, Event, KeyCode},
     execute,
 };
+use include_dir::{include_dir, Dir};
 
-// use crossterm::style::Color::Rgb;
+static SOUNDS_DIR: Dir = include_dir!("$CARGO_MANIFEST_DIR/sounds");
 
-const HIGH_SOUND_FILE: &str = "sounds/bright.wav";
-const BRIGHT_SOUND_FILE: &str = "sounds/high.wav";
+const HIGH_SOUND_FILE: &str = "bright.wav";
+const BRIGHT_SOUND_FILE: &str = "high.wav";
 const INITIAL_DELAY_TIME: u64 = 60_000;
 
 fn run() -> Result<(), Box<dyn std::error::Error>> {
@@ -99,17 +100,18 @@ fn clear_screen() -> io::Result<()> {
 }
 
 fn get_sound_source(beat_counter: u32) -> Result<Box<dyn Source<Item = f32> + Send>, Box<dyn std::error::Error>> {
-    let filename = if beat_counter == 1 { HIGH_SOUND_FILE } else { BRIGHT_SOUND_FILE };
-    let buffer = load_sound_file(filename)?;
+    let file = if beat_counter == 1 { 
+        SOUNDS_DIR.get_file(HIGH_SOUND_FILE).expect("File not found") 
+    } else { 
+        SOUNDS_DIR.get_file(BRIGHT_SOUND_FILE).expect("File not found") 
+    };
+    let buffer = load_sound_file(file)?;
     let source = Decoder::new(io::Cursor::new(buffer))?.convert_samples();
     Ok(Box::new(source))
 }
 
-fn load_sound_file(filename: &str) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
-    let mut file = File::open(filename)?;
-    let mut buffer = Vec::new();
-    file.read_to_end(&mut buffer)?;
-    Ok(buffer)
+fn load_sound_file(file: &include_dir::File) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+    Ok(file.contents().to_vec())
 }
 
 fn display_bpm(bpm: &u32) -> io::Result<()> {
